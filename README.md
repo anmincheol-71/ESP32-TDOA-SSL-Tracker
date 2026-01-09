@@ -49,7 +49,7 @@ $$\Delta t = \frac{d \cdot \sin(\theta)}{v}$$
 
 * **동기화 오차 방지**: `portDISABLE_INTERRUPTS()`를 사용하여 두 I2S 유닛의 시작 시점을 하드웨어 수준에서 정렬했습니다.
 * **지터(Jitter) 억제**: Alpha Smoothing(고정 계수 보간)과 중앙값 필터(Median Filter)를 결합하여 추적 십자선이 떨리는 현상을 해결했습니다.
-* **고속 데이터 스트리밍**: 16kHz/32bit 샘플링 데이터를 실시간으로 전송하기 위해 UART 대역폭을 1.5Mbps로 최적화했습니다.
+* **고속 데이터 스트리밍**: 16kHz/32bit 샘플링 데이터를 실시간으로 전송하기 위해 UART 대역폭을 1.5Mbps로 최적화했습니다..
 
 ---
 
