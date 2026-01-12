@@ -1,68 +1,77 @@
-# 🎙️ SonicTrack-ESP32: Real-time TDOA Sound Source Localization
+# 🛰️ TDOA Spatial Tracker v5.0
+> **Advanced Real-time 4-Channel Sound Source Localization System**
 
-> **ESP32와 4채널 마이크 어레이를 이용한 실시간 음원 위치 추적 및 시각화 시스템**
-
-이 프로젝트는 **TDOA(Time Difference of Arrival)** 원리를 활용하여 소리가 발생하는 방향(방위각 및 고도)을 실시간으로 추적합니다. ESP32에서 수집된 고속 오디오 데이터를 PC로 전송하고, **GCC-PHAT** 알고리즘을 통해 소음 환경에서도 정밀한 각도를 계산하여 카메라 영상 위에 시각화합니다.
-
----
-
-## ✨ Key Features
-* **4-Channel Sync Sampling**: 2개의 I2S 인터페이스를 병렬 동기화하여 4개 마이크 간의 미세한 위상 차를 데이터화.
-* **GCC-PHAT Algorithm**: 위상 변환 가중치를 적용하여 실내 반사음(Multipath) 환경에서도 높은 상관관계 피크 추출.
-* **Advanced Signal Processing**:
-  * **Butterworth Bandpass Filter**: 300Hz ~ 3000Hz 음성 대역 외 노이즈 차단.
-  * **Confidence-based Filtering**: 신호 신뢰도(Peak-to-Mean Ratio)를 분석하여 허위 탐지(False Positive) 방지.
-* **Real-time GUI**: OpenCV 기반의 컨트롤 패널을 통해 Azimuth/Elevation 궤적 히스토리 모니터링.
+[cite_start]본 프로젝트는 ESP32와 4채널 I2S MEMS 마이크 배열을 활용하여 음원의 방향(Azimuth, Elevation)을 실시간으로 추적하고 공간 특성을 분석하는 시스템입니다. [cite: 10, 11] [cite_start]단순한 소리 감지를 넘어, 하드웨어 동기화 제약과 신호 처리 오차를 공학적으로 해결하여 높은 정밀도를 구현했습니다. [cite: 12, 75-77]
 
 ---
 
-## 🛠 Tech Stack
-| Category | Technologies |
-| :--- | :--- |
-| **Embedded** | ESP32 (C++ / Arduino), I2S Driver, Dual-core Processing |
-| **Analysis** | Python 3.x, NumPy, SciPy (Signal Processing) |
-| **Visual** | OpenCV (UI & Camera Overlay) |
-| **Protocol** | High-speed Serial (1.5 Mbps) |
+## 🚀 Key Features
+
+* [cite_start]**GCC-PHAT & Subsample Interpolation**: 주파수 영역의 위상차를 이용한 GCC-PHAT 알고리즘과 포물선 보간법(Parabolic Interpolation)을 적용하여 각도 오차를 초기 대비 최대 70% 감소시켰습니다. [cite: 11, 12, 60]
+* **정밀한 신호 처리 알고리즘**:
+    * [cite_start]**De-aliasing**: 300~3000Hz 대역 제한 및 공간 에일리어싱 제거를 통해 데이터 안정성 확보. [cite: 61, 62]
+    * [cite_start]**Linear Correction**: 실측 데이터 기반의 선형 회귀 분석 모델을 적용하여 마이크 부착 오차 보정. [cite: 63-67]
+* [cite_start]**고성능 데이터 파이프라인**: 1.5Mbps 고속 시리얼 통신 및 전용 바이너리 패킷 프로토콜을 설계하여 128KB/s의 PCM 데이터를 저지연 전송합니다. [cite: 27-29]
+* [cite_start]**통합 실시간 UI (OpenCV)**: 타겟 오버레이, 위치 히스토리 그래프, 반향 지수(Reverb Index), 음원 이동 상태(Motion)를 대시보드 형태로 시각화합니다. [cite: 13, 118-142]
 
 ---
 
-## 🏗 System Architecture
+## 🛠️ Tech Stack
 
-### 1. Hardware Connection
-마이크는 **십자(Cross) 형태**로 배치하며, ESP32와 다음과 같이 연결합니다.
+* [cite_start]**Hardware**: ESP32 (Main MCU), INMP441 I2S Microphone x4 [cite: 35, 37]
+* [cite_start]**Firmware**: C++ (Arduino/ESP-IDF), I2S DMA 동기화 및 인터럽트 제어 [cite: 75, 77]
+* [cite_start]**Software**: Python 3.8+, NumPy, OpenCV, SciPy, PySerial [cite: 41, 80]
 
-| Mic Index | Channel | Pin (WS/SD/SCK) | Note |
+---
+
+## 🔌 Hardware Configuration
+
+### Mic Array Geometry
+* [cite_start]**구조**: 4채널 정사가각형 배열 (Half-side = 3.5cm) [cite: 71, 72]
+* [cite_start]**동기화**: ESP32의 독립 클럭 문제를 해결하기 위해 인터럽트 비활성화 후 두 I2S 포트를 동시 시작하도록 설계하여 샘플 시간 오프셋을 최소화했습니다. [cite: 75-77]
+
+
+---
+
+## 📊 Accuracy Improvement (Step-by-Step)
+
+[cite_start]발표 자료에 근거한 알고리즘 단계별 성능 개선 수치입니다. 
+
+| 단계 | 적용 알고리즘/설정 | 2D 평균 오차 | 주요 개선 사항 |
 | :--- | :--- | :--- | :--- |
-| **Mic 1** | I2S0 (L) | 25 / 22 / 26 | Horizontal Pair A |
-| **Mic 2** | I2S0 (R) | 25 / 22 / 26 | Horizontal Pair B |
-| **Mic 3** | I2S1 (L) | 15 / 34 / 14 | Vertical Pair A |
-| **Mic 4** | I2S1 (R) | 15 / 34 / 14 | Vertical Pair B |
-
-### 2. Localization Principle
-마이크 간 거리 $d$와 소리의 속도 $v$를 기반으로, 도달 시간 차이 $\Delta t$를 측정하여 각도 $\theta$를 산출합니다.
-
-$$\Delta t = \frac{d \cdot \sin(\theta)}{v}$$
+| **① 초기** | 정수 TDOA, PHAT 미적용 | 31° | 가장 단순한 버전, 실사용 어려움 |
+| **② GCC-PHAT** | PHAT 가중치 적용 | 26° | 피크 선명도 개선 (약 15~20%) |
+| **③ Subsample** | 포물선 보간법 적용 | 17° | Fractional delay로 약 35% 추가 개선 |
+| **④ Band-pass** | 2-6kHz 대역 필터링 | 12.5° | Aliasing 감소 및 유효 대역 집중 |
+| **⑤ 보정 모델** | 선형 보정 (a+b) 적용 | **7.8°** | 마이크 부착 오차 보정, 최종 성능 |
 
 ---
 
-## 📈 Technical Optimization (v4.1)
+## 🎥 Demo & UI Overview
 
-* **동기화 오차 방지**: `portDISABLE_INTERRUPTS()`를 사용하여 두 I2S 유닛의 시작 시점을 하드웨어 수준에서 정렬했습니다.
-* **지터(Jitter) 억제**: Alpha Smoothing(고정 계수 보간)과 중앙값 필터(Median Filter)를 결합하여 추적 십자선이 떨리는 현상을 해결했습니다.
-* **고속 데이터 스트리밍**: 16kHz/32bit 샘플링 데이터를 실시간으로 전송하기 위해 UART 대역폭을 1.5Mbps로 최적화했습니다..
+
+
+https://github.com/user-attachments/assets/1c542a70-31f4-4c53-9b3d-8e6cb9195844
+
+
+
+* [cite_start]**Direction (Az/El)**: 현재 추정된 방위각과 고도각 수치 및 미니 컴파스 표시. [cite: 135]
+* **Distance Estimate (Ref)**: 에너지(RMS) 기반 거리 추정. (절대 거리 정확도는 환경에 따라 변동될 수 있음) [cite_start][cite: 136, 148]
+* **Spatial Analysis**:
+    * [cite_start]**Reverb Index**: Direct/Mixed/Reverb 환경 분류. [cite: 137]
+    * [cite_start]**Motion Status**: 음원 각속도 기반 이동 상태(Static/Moving/Fast) 분류. [cite: 138]
+    * [cite_start]**Certainty**: 현재 위치 데이터의 확실성(%) 시각화. [cite: 139]
 
 ---
 
-## 🚀 Getting Started
+## ⚠️ Limitations & Future Work
 
-### 1. Repository Structure
-```text
-.
-├── firmware/
-│   └── tracker_esp32.ino    # ESP32 High-speed sampling code
-└── software/
-    └── tdoa_visualizer.py   # Python analysis & UI code
+* [cite_start]**한계점**: 절대 거리 정확도 부족, 2S 동기화 및 각도 분해능 제한, 단일 음원 추적만 가능. [cite: 148, 149, 151]
+* **향후 계획**: 
+    * [cite_start]2.5D 틸팅 라이다 기반 자율주행 전차(UGV)의 사각지대 보완 센서로 통합. [cite: 7, 14]
+    * [cite_start]다중 음원 분리 및 정밀 하드웨어 동기화 모듈 추가. [cite: 153, 155]
 
+---
 
-
-원본코드 찾기
+### 💡 Engineering Note
+> [cite_start]"하드웨어의 물리적 제약(클럭 오프셋, 위상차 보존)을 소프트웨어적 최적화(DMA 제어, 보간 알고리즘)로 극복한 프로젝트입니다. AI를 도구로 활용해 개발 속도를 높이되, 실제 물리 환경에서 발생하는 오차 원인을 분석하고 '보정 모델'을 직접 설계하여 해결하는 엔지니어링 과정을 거쳤습니다." [cite: 75, 77, 85]
